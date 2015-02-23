@@ -631,7 +631,9 @@ object LoadNAACL extends App {
     val kb = if (Conf.getBoolean("mf.use-features")) new TensorKB(k) with Features else new TensorKB(k)
 
     //loading cells
-    val zipFile = new java.util.zip.ZipFile(new File(this.getClass.getResource("/naacl2013.txt.zip").toURI))
+    //val zipFile = new java.util.zip.ZipFile(new File(this.getClass.getResource("/naacl2013.txt.zip").toURI))
+    //val zipFile = new java.util.zip.ZipFile(new File(this.getClass.getResource("/swmdata.txt.zip").toURI))
+    val zipFile = new java.util.zip.ZipFile(new File(this.getClass.getResource("/allrules.txt.zip").toURI))
     import collection.JavaConverters._
 
     val List(entry) = zipFile.entries.asScala.toList
@@ -641,7 +643,7 @@ object LoadNAACL extends App {
 
     for {
       fact <- facts
-      Array(r, e1, e2, typ, target) = fact.split("\t")
+      Array(r, e1, e2, typ, target, doc) = fact.split("\t")
     } {
       val cellType = typ match {
         case "Train" => CellType.Train
@@ -650,9 +652,11 @@ object LoadNAACL extends App {
         case "Observed" => CellType.Observed
       }
 
+
+
       //only subsamples FB relations
       if (subsample == 1.0 || cellType != CellType.Train || !r.startsWith("REL$") || rand.nextDouble() < subsample) {
-        val cell = Cell(r, (e1, e2), DefaultIx, target.toDouble, cellType)
+        val cell = Cell(r, (e1, e2+":"+doc), DefaultIx, target.toDouble, cellType, doc)
         kb += cell
       }
     }
@@ -660,7 +664,7 @@ object LoadNAACL extends App {
     //loading formulae
     if (Conf.hasPath("naacl.formulaeFile") && (Conf.getString("naacl.formulaeFile") != "None" || Conf.getString("mf.mode") == "mf")) {
       val formulaePath = Conf.getString("naacl.formulaeFile")
-      println("Loading formulae form " + formulaePath)
+      println("Loading formulae from " + formulaePath)
 
       val lines = Source.fromFile(formulaePath).getLines()
 
@@ -728,7 +732,8 @@ object WriteNAACL extends App {
 
     testCellsWithPrediction.foreach { case (cell, p) =>
       val (e1, e2) = cell.key2.asInstanceOf[(String, String)]
-      writer.write(s"$p\t$e1|$e2\t" + "REL$NA" + s"\t${cell.key1}\n")
+      val d = cell.doc
+      writer.write(s"$p\t$e1|$e2\t" + "REL$NA" + s"\t${cell.key1}\t$d\n")
     }
     writer.close()
   }

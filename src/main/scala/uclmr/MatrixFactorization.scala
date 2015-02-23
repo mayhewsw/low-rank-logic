@@ -25,7 +25,7 @@ object MatrixFactorization extends App {
 
 class MatrixFactorization(confPath: String = "conf/mf.conf") {
   val debug = false //whether to use a small synthetic matrix or actual data
-  val loadFormulae = debug && true //whether forumlae should be sampled for debugging
+  val loadFormulae = debug && true //whether formulae should be sampled for debugging
   //val print = false //whether to print the matrix (only do this for small ones!)
 
   Conf.add(confPath)
@@ -62,7 +62,7 @@ class MatrixFactorization(confPath: String = "conf/mf.conf") {
 
   val postInferenceThreshold = 0.5
 
-
+  // database is either a degenerate debug thing, or a real data thing.
   val db = if (debug) {
     val tmp = new TensorKB(4)
     tmp.sampleTensor(10, 10, 0, 0.1) //samples a matrix
@@ -81,6 +81,9 @@ class MatrixFactorization(confPath: String = "conf/mf.conf") {
     case "tsv" => LoadTSV(k, subsample)
   }
 
+  println("is matrix? " + db.isMatrix)
+  println("is tensor? " + db.isTensor)
+
   val rand = new Random(0l)
 
   val fg = db.toFactorGraph
@@ -97,13 +100,12 @@ class MatrixFactorization(confPath: String = "conf/mf.conf") {
   def nextInit() = rand.nextGaussian() * 0.1
   (colNodes.values.view ++ rowNodes.values.view).foreach(n =>
     n.variable.asVector.b = new DenseVector((0 until k).map(i => nextInit()).toArray))
+
   if (useFeatures) db match {
     case f: Features =>
       f.fwnodes1.foreach(n => n.variable.asVector.b = new DenseVector((0 until f.numFeatures1).map(i => nextInit()).toArray))
       f.fwnodes2.foreach(n => n.variable.asVector.b = new DenseVector((0 until f.numFeatures2).map(i => nextInit()).toArray))
   }
-
-
 
   //fact factors
     for (d <- data) {
@@ -276,8 +278,8 @@ class MatrixFactorization(confPath: String = "conf/mf.conf") {
   fg.build()
 
 
-  println("DB:" + db.toInfoString)
-  println("FG:" + fg.toInspectionString)
+  println("Database:" + db.toInfoString)
+  println("FactorGraph:" + fg.toInspectionString)
 
   val gradientOptimizer = optimizer match {
     case "SGD" => new ConstantLearningRate(baseRate = alpha)
@@ -291,6 +293,7 @@ class MatrixFactorization(confPath: String = "conf/mf.conf") {
   def run(): Double = {
     println("Optimizing...")
     Timer.time("optimization") {
+      // this runs if mode == mf
       if (mode != "inference-only")
         GradientBasedOptimizer(fg,
           if (batchTraining) new BatchTrainer(_, gradientOptimizer, maxIter) with ProgressLogging

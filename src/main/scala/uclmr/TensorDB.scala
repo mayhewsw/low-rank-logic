@@ -44,7 +44,7 @@ object TensorDBImplicits {
   implicit def tuple3ToCell(tuple3: (Any, Any, Any)): Cell = Cell(tuple3._1, tuple3._2, tuple3._3)
 }
 
-case class Cell(key1: Any, key2: Any = DefaultIx, key3: Any = DefaultIx, target: Double = 1.0, cellType: CellType = CellType.Train) {
+case class Cell(key1: Any, key2: Any = DefaultIx, key3: Any = DefaultIx, target: Double = 1.0, cellType: CellType = CellType.Train, doc: String = "RANDOMDOC") {
   val key = (key1, key2, key3)
   val train =    cellType == Train
   val dev =      cellType == Dev
@@ -79,6 +79,7 @@ trait Tensor {
   def get(key1: CellIx, key2: CellIx = DefaultIx, key3: CellIx = DefaultIx): Option[Cell]
 }
 
+// k is dimension of a vector node when converting to factorgraph
 class TensorDB(val k: Int = 100) extends Tensor {
   val random = new Random(0l)
 
@@ -226,6 +227,7 @@ class TensorDB(val k: Int = 100) extends Tensor {
   def toFactorGraph: FactorGraph = {
     val fg = new FactorGraph()
 
+    // only works if isMatrix. keys3 must be empty.
     if (isMatrix) {
       ix1ToNodeMap ++= keys1 map (key => key -> fg.addVectorNode(k, key.toString))
       ix2ToNodeMap ++= keys2 map (key => key -> fg.addVectorNode(k, key.toString))
@@ -298,9 +300,9 @@ class TensorDB(val k: Int = 100) extends Tensor {
   def sampleTensor(num1: Int, num2: Int, num3: Int = 0, density: Double = 0.1) = {
     require(cells.isEmpty)
 
-    val rels = (1 to num1).map(i => s"r$i")
-    val arg1s = (1 to num2).map(i => s"e$i")
-    val arg2s = if (num3 > 0) (1 to num3).map(i => s"e$i") else List(DefaultIx)
+    val rels = (1 to num1).map(i => s"r$i") // relations
+    val arg1s = (1 to num2).map(i => s"e$i") // entities
+    val arg2s = if (num3 > 0) (1 to num3).map(i => s"e$i") else List(DefaultIx) //entities
     val rand = new Random(0l)
     for {
       r <- rels
